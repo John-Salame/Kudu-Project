@@ -7,7 +7,6 @@
 //char *fgets(char* str, int n, FILE *stream) as safe alternative to gets
 //stdout is the output stream
 
-//Paul's suggestion: multiply and divide by primes to prevent low order bits from zeroing out.
 
 void convert(double *dptr, long *lptr)
 {
@@ -96,10 +95,20 @@ long findPrime(long start)
 */
 void getKey(long seed1, long seed2)
 {
-    long prime1 = findPrime(seed1);
+    long prime1 = findPrime(seed1); //should only be 64-bit
     printf("Prime 1: %ld\n", prime1);
-    long prime2 = findPrime(seed2);
+    long prime2 = findPrime(seed2); //should only be 64-bit
     printf("Prime 2: %ld\n", prime2);
+
+    __int128 bigPrime1 = prime1;
+    __int128 bigPrime2 = prime2;
+    __int128 n = bigPrime1 * bigPrime2;
+    
+    long factor1 = n / prime2; //use to check if n is correct
+    long factor2 = n / prime1; //use to check if n is correct
+
+    printf("n / %ld is %ld\n", prime2, factor1);
+    printf("n / %ld is %ld\n", prime1, factor2);
 }
 
 
@@ -141,10 +150,6 @@ int main(int argc, char *argv[])
     printf("Seed 2: %ld\n", seed2);
     
     getKey(seed1, seed2);
-    
-    long long int testll = seed1 * seed2;
-    printf("Size of long long: %ld\n", sizeof(testll));
-    printf("N is %lld\n", testll);
     
     return 0;
 }
