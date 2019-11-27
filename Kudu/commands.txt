@@ -1,0 +1,7 @@
+/usr/bin/openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out private-key.pem
+
+/usr/bin/openssl pkey -in private-key.pem -out public-key.pem -pubout
+
+/usr/bin/openssl rsautl -encrypt -in plaintext.txt -pubin -inkey public-key.pem -out ciphertext.txt
+
+
