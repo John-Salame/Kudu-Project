@@ -4,4 +4,8 @@
 
 /usr/bin/openssl rsautl -encrypt -in plaintext.txt -pubin -inkey public-key.pem -out ciphertext.txt
 
+/usr/bin/openssl rsa -pubin -inform PEM -in public-key.pem -outform DER -out public-key.der
+
+/usr/bin/openssl asn1parse -inform DER -in public-key.der
+
 

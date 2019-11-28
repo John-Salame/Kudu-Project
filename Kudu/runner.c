@@ -135,10 +135,11 @@ __int128 findD(__int128 totient, long k)
             r = ~r;
         }
         long x = (r % maxTMultiple) + 1;
+        //printf("X %ld ", x);
         __int128 prod = x * totient + 1;
         if(prod % k == 0)
         {
-            printf("x is %ld\n", x);
+            printf("\nx is %ld\n", x);
             d = prod / k;
             valid = true;
         }
@@ -200,6 +201,50 @@ void getKey(long seed1, long seed2)
     char dStr[41];
     int128toa(dStr, d);
     printf("Private exponent d: %s\n", dStr);
+
+
+    //FILE I/O TESTING
+    //https://stackoverflow.com/questions/4600797/read-int-values-from-a-text-file-in-c
+    FILE *testoutput = fopen("testoutput.txt", "w");
+    fputs(nStr, testoutput);
+    fputc('\n', testoutput);
+    fprintf(testoutput, "%ld\n", factor1);
+    fprintf(testoutput, "%ld\n", factor2);
+    fclose(testoutput);
+
+    FILE *testinput = fopen("testoutput.txt", "r");
+    __int128 l1 = 0;
+    long l2;
+    long l3;
+    char ch;
+    int dig;
+    puts("Getting char: ");
+    //https://www.quora.com/How-do-you-read-integers-from-a-file-in-C
+    while(!feof(testinput))
+    {
+        ch = fgetc(testinput);
+        if(ch == '\n')
+        {
+            break;
+        }
+        dig = atoi(&ch);
+        printf("%d", dig);
+        l1 *= 10;
+        l1 += dig;
+    }
+    fscanf(testinput, "%ld", &l2);
+    fscanf(testinput, "%ld", &l3);
+
+    char testbig[41];
+    int128toa(testbig, l1);
+
+    printf("\n__int128: %s\n", testbig);
+    printf("Prime 1: %ld\n", l2);
+    printf("Prime 2: %ld\n", l3);
+    printf("n / prime2: %ld\n", (long)(l1 / l3));
+    printf("n / prime1: %ld\n", (long)(l1 / l2));
+    fclose(testinput);
+    //TEST SUCCESSFUL! I CORRECTLY READ IN AN __int128!
 }
 
 
