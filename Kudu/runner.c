@@ -7,14 +7,33 @@
 //char *fgets(char* str, int n, FILE *stream) as safe alternative to gets
 //stdout is the output stream
 
+int OFFSET = 12;
 
 void convert(double *dptr, long *lptr)
 {
     asm("movq (%rdi), %r8; movq %r8, (%rsi);");
 }
 
+
+//taken and modified from https://code-examples.net/en/q/b1dc31
+static char *int128toa_helper(char *dest, __int128 x) {
+  if (x >= 10) {
+    dest = int128toa_helper(dest, x / 10);
+  }
+  //reach base case when x is a single digit (most significant digit)
+  *dest = (char) (x % 10 + '0');
+  return ++dest;
+}
+
+//taken and modified from https://code-examples.net/en/q/b1dc31
+//should make a string with ones place right before '\0'
+char *int128toa(char *dest, __int128 x) {
+  *int128toa_helper(dest, x) = '\0';
+  return dest;
+}
+
 //07fa
-long getRand(double *result)
+long getRand()
 {
     //%rbp is 0x7fffffffdcb0
     double dbits = 12.0; //-0x10(%rbp)
@@ -22,7 +41,7 @@ long getRand(double *result)
     
     char str[50];
     
-    puts("Insert phrase:");
+    puts("\nInsert phrase:");
     fgets(str, 50, stdin);
     
     float product = 1;
@@ -49,11 +68,11 @@ long getRand(double *result)
     double dproduct = product;
     
     dbits = currTime / dproduct;
-    *result = dbits; //result is at -0x28(%rbp)
     
     //https://www.codeproject.com/Articles/15971/Using-Inline-Assembly-in-C-C
     convert(&dbits, &bits); //move double dbits to long bits
-    
+    printf("Time divided by product is %e, as an int is %ld or %lx\n", dbits, bits, bits);
+
     return bits; //return bits
 }
 
@@ -89,67 +108,157 @@ long findPrime(long start)
 } //end of findPrime
 
 
+__int128 findD(__int128 totient, long k)
+{
+    __int128 d = 0;
+    __int128 one = 1;
+    __int128 limit = ~(one << 127) ^ 1; //limit ends up being (2^127 - 1) - 1
+    long maxTMultiple = limit / totient;
+    //protection for it totient is too small and maxTMultiple is too big
+    if(maxTMultiple < 0)
+    {
+        maxTMultiple = ~maxTMultiple;
+    }
+    printf("Max multiple of totient: %ld\n", maxTMultiple);
+    __int128 maxD = (totient * maxTMultiple + 1) / k;
+
+    char maxDStr[41]; //41 worst case according to https://code-examples.net/en/q/b1dc31
+    int128toa(maxDStr, maxD);
+    printf("Max d is %s\n", maxDStr);
+
+    bool valid = false;
+    while(!valid)
+    {
+        long r = rand();
+        if(r < 0)
+        {
+            r = ~r;
+        }
+        long x = (r % maxTMultiple) + 1;
+        __int128 prod = x * totient + 1;
+        if(prod % k == 0)
+        {
+            printf("x is %ld\n", x);
+            d = prod / k;
+            valid = true;
+        }
+    }
+    return d;
+} //end of findD
+
 /*
     expects odd numbered seeds
     writes to file for public and private keys
 */
 void getKey(long seed1, long seed2)
 {
-    long prime1 = findPrime(seed1); //should only be 64-bit
+    long prime1, prime2;
+    __int128 bigPrime1, bigPrime2;
+    __int128 n; //public number
+    __int128 totient;
+    long k; //public exponent
+    __int128 d; //private exponent
+
+    prime1 = findPrime(seed1); //should only be 64-bit
     printf("Prime 1: %ld\n", prime1);
-    long prime2 = findPrime(seed2); //should only be 64-bit
+    prime2 = findPrime(seed2); //should only be 64-bit
     printf("Prime 2: %ld\n", prime2);
 
-    __int128 bigPrime1 = prime1;
-    __int128 bigPrime2 = prime2;
-    __int128 n = bigPrime1 * bigPrime2;
+    bigPrime1 = prime1;
+    bigPrime2 = prime2;
+    n = bigPrime1 * bigPrime2;
+    char nStr[41];
+    int128toa(nStr, n);
+    printf("n is %s\n", nStr);
     
     long factor1 = n / prime2; //use to check if n is correct
     long factor2 = n / prime1; //use to check if n is correct
 
     printf("n / %ld is %ld\n", prime2, factor1);
     printf("n / %ld is %ld\n", prime1, factor2);
+
+    totient = (bigPrime1 - 1) * (bigPrime2 - 1);
+    char tStr[41];
+    int128toa(tStr, totient);
+    printf("Totient is %s\n", tStr);
+
+    k = (1 << 16) + 1; //prime number 2^16 + 1 as suggested by source
+    //determine if default k is coprime or not
+    bool coprime = (totient % k != 0);
+
+    //easiest way to deal with a situation that will probably never arise
+    if(!coprime)
+    {
+        puts("k is not coprime to totient. Try different inputs.");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Public exponent k: %ld\n", k);
+
+    //now find d (private exponent)
+    d = findD(totient, k);
+    char dStr[41];
+    int128toa(dStr, d);
+    printf("Private exponent d: %s\n", dStr);
 }
 
 
+//change (OFFSET + 1) most significant bits to 0s
 long shrink(long num)
 {
     long output;
-    output = num << 6;
+    output = num << OFFSET;
     if(output < 0)
     {
         output = ~output;
     }
-    output = output >> 6;
+    output = output >> OFFSET;
     return output;
 }
 
 
 int main(int argc, char *argv[])
 {
-    double timeDiv1; //stores currTime / dproduct
-    double timeDiv2;
-    
-    //take bits from division and store them in "bits"
-    long seed1 = getRand(&timeDiv1);
-    
-    long seed2 = getRand(&timeDiv2);
+    unsigned long randSeed = getRand();
+    srand(randSeed);
 
-    printf("Time divided by product is %e, as an int is %ld or %lx\n", timeDiv1, seed1, seed1);
-    
-    printf("Time divided by product is %e, as an int is %ld or %lx\n", timeDiv2, seed2, seed2);
+    //take bits from division and store them in "bits"
+    long seed1 = getRand();
+    long seed2 = getRand();
     
     //these 2 lines will make it so I can generate prime numbers more quickly.
     seed1 = shrink(seed1);
     seed2 = shrink(seed2);
     
-    seed1 = (seed1 % 2 == 0? seed1 + 1 : seed1); //change seed to odd number
-    seed2 = (seed2 % 2 == 0? seed2 + 1 : seed2); //change seed to odd number
+    seed1 = (seed1 % 2 == 0? seed1 + 3 : seed1); //change seed to odd number
+    seed2 = (seed2 % 2 == 0? seed2 + 3 : seed2); //change seed to odd number
     
-    printf("Seed 1: %ld\n", seed1);
-    printf("Seed 2: %ld\n", seed2);
+    printf("Seed 1: %ld or %lx\n", seed1, seed1);
+    printf("Seed 2: %ld or %lx\n", seed2, seed2);
     
     getKey(seed1, seed2);
-    
+
+    /*
+    puts("Simulate search for prime factors\n");
+
+    __int128 bigs1 = seed1;
+    __int128 n = bigs1 * seed2;
+    long start = sqrt(n);
+    printf("Sqrt of n is %ld\n", start);
+    if(start % 2 == 0)
+    {
+        start = start + 1;
+    }
+    //sqrt seems to be closer to the lower prime than the larger prime
+    for(long i = start; i > 1; i -= 2)
+    {
+        if(i == seed1 || i == seed2)
+        {
+            printf("Found %ld\n", i);
+            break;
+        }
+    }
+    puts("Finished searching possible primes in range\n");
+    */
     return 0;
 }
