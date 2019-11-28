@@ -3,6 +3,7 @@
 #include <time.h>
 #include <stdbool.h>
 #include "print128.c"
+#include <assert.h>
 #include <stdlib.h>
 
 //char *fgets(char* str, int n, FILE *stream) as safe alternative to gets
@@ -61,6 +62,34 @@ long getRand()
 }
 
 
+//change (OFFSET + 1) most significant bits to 0s
+long shrink(long num)
+{
+    long output;
+    output = num << OFFSET;
+    if(output < 0)
+    {
+        output = ~output;
+    }
+    output = output >> OFFSET;
+    return output;
+}
+
+
+long getSeed()
+{
+    long seed;
+    seed = getRand();
+
+    //make it so I can generate prime numbers more quickly.
+    seed = shrink(seed);
+    //change seed to odd number (I use 3 to work with my flaw's edge case)
+    seed = (seed % 2 == 0? seed + 3 : seed);
+
+    return seed;
+}
+
+//find next prime
 //start is assumed to be odd; only returns odd numbers (I'm removing 2 from dataset since it's too small anyway);
 long findPrime(long start)
 {
@@ -125,6 +154,7 @@ __int128 findD(__int128 totient, long k)
         {
             printf("\nx is %ld\n", x);
             d = prod / k;
+            assert(prod == d * k);
             valid = true;
         }
     }
@@ -135,8 +165,9 @@ __int128 findD(__int128 totient, long k)
     expects odd numbered seeds
     writes to file for public and private keys
 */
-void getKey(long seed1, long seed2)
+void getKey()
 {
+    long seed1, seed2;
     long prime1, prime2;
     __int128 bigPrime1, bigPrime2;
     __int128 n; //public number
@@ -144,14 +175,37 @@ void getKey(long seed1, long seed2)
     long k; //public exponent
     __int128 d; //private exponent
 
+    seed1 = getSeed();
+    seed2 = getSeed();
     prime1 = findPrime(seed1); //should only be 64-bit
-    printf("Prime 1: %ld\n", prime1);
     prime2 = findPrime(seed2); //should only be 64-bit
-    printf("Prime 2: %ld\n", prime2);
 
-    bigPrime1 = prime1;
+    bigPrime1 = prime1; //for calculating n and totient without long int overflow
     bigPrime2 = prime2;
     n = bigPrime1 * bigPrime2;
+
+    totient = (bigPrime1 - 1) * (bigPrime2 - 1);
+
+    k = (1 << 16) + 1; //prime number 2^16 + 1 as suggested by source
+    //determine if default k is coprime or not
+
+    //we must have 1 < k < totient
+    while(k >= totient)
+    {
+        puts("\n\nYour prime factors are too small. Please do a different input.");
+        seed2 = getSeed();
+        prime2 = findPrime(seed2);
+        bigPrime2 = prime2;
+        totient = (bigPrime1 - 1) * (bigPrime2 - 1);
+        n = bigPrime1 * bigPrime2;
+    }
+
+    printf("\nSeed 1: %ld or %lx\n", seed1, seed1);
+    printf("Seed 2: %ld or %lx\n", seed2, seed2);
+    printf("Prime 1: %ld\n", prime1);
+    printf("Prime 2: %ld\n", prime2);
+
+    //print n (the modulo)
     char nStr[41];
     int128toa(nStr, n);
     printf("n is %s\n", nStr);
@@ -159,17 +213,15 @@ void getKey(long seed1, long seed2)
     long factor1 = n / prime2; //use to check if n is correct
     long factor2 = n / prime1; //use to check if n is correct
 
-    printf("n / %ld is %ld\n", prime2, factor1);
-    printf("n / %ld is %ld\n", prime1, factor2);
+    assert(prime1 == factor1);
+    assert(prime2 == factor2);
 
-    totient = (bigPrime1 - 1) * (bigPrime2 - 1);
+    //print totient
     char tStr[41];
     int128toa(tStr, totient);
     printf("Totient is %s\n", tStr);
 
-    k = (1 << 16) + 1; //prime number 2^16 + 1 as suggested by source
-    //determine if default k is coprime or not
-    bool coprime = (totient % k != 0);
+    bool coprime = (totient % k != 0); //this works since k is prime
 
     //easiest way to deal with a situation that will probably never arise
     if(!coprime)
@@ -248,40 +300,12 @@ void getKey(long seed1, long seed2)
 }
 
 
-//change (OFFSET + 1) most significant bits to 0s
-long shrink(long num)
-{
-    long output;
-    output = num << OFFSET;
-    if(output < 0)
-    {
-        output = ~output;
-    }
-    output = output >> OFFSET;
-    return output;
-}
-
-
 int main(int argc, char *argv[])
 {
     unsigned long randSeed = getRand();
     srand(randSeed);
 
-    //take bits from division and store them in "bits"
-    long seed1 = getRand();
-    long seed2 = getRand();
-    
-    //these 2 lines will make it so I can generate prime numbers more quickly.
-    seed1 = shrink(seed1);
-    seed2 = shrink(seed2);
-    
-    seed1 = (seed1 % 2 == 0? seed1 + 3 : seed1); //change seed to odd number
-    seed2 = (seed2 % 2 == 0? seed2 + 3 : seed2); //change seed to odd number
-    
-    printf("Seed 1: %ld or %lx\n", seed1, seed1);
-    printf("Seed 2: %ld or %lx\n", seed2, seed2);
-    
-    getKey(seed1, seed2);
+    getKey();
 
     /*
     puts("Simulate search for prime factors\n");
