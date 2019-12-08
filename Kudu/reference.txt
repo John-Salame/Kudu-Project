@@ -6,6 +6,14 @@ https://www.openssl.org/docs/man1.1.0/man3/EVP_PKEY_encrypt.html
 
 https://shanetully.com/2012/04/simple-public-key-encryption-with-rsa-and-openssl/
 
+http://hayageek.com/rsa-encryption-decryption-openssl-c/
+
+https://tools.ietf.org/html/rfc8017#section-3.1
+
+http://hackage.haskell.org/package/HsOpenSSL-0.11.4.17/docs/OpenSSL-RSA.html
+
+https://tools.ietf.org/html/rfc2437#section-2
+
 Reading integers from file:
 https://www.quora.com/How-do-you-read-integers-from-a-file-in-C
 https://stackoverflow.com/questions/4600797/read-int-values-from-a-text-file-in-c

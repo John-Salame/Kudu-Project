@@ -9,7 +9,7 @@
 //char *fgets(char* str, int n, FILE *stream) as safe alternative to gets
 //stdout is the output stream
 
-int OFFSET = 12;
+int OFFSET = 12; //byte offset for shrink function
 
 void convert(double *dptr, long *lptr)
 {
@@ -90,7 +90,7 @@ long getSeed()
 }
 
 //find next prime
-//start is assumed to be odd; only returns odd numbers (I'm removing 2 from dataset since it's too small anyway);
+//start is assumed to be odd; only returns odd numbers (I'm removing 2 from dataset)
 long findPrime(long start)
 {
     bool found = false;
@@ -121,13 +121,15 @@ long findPrime(long start)
 } //end of findPrime
 
 
+
+//@param k is public exponent
 __int128 findD(__int128 totient, long k)
 {
     __int128 d = 0;
     __int128 one = 1;
     __int128 limit = ~(one << 127) ^ 1; //limit ends up being (2^127 - 1) - 1
     long maxTMultiple = limit / totient;
-    //protection for it totient is too small and maxTMultiple is too big
+    //protection for if totient is too small and maxTMultiple is too big
     if(maxTMultiple < 0)
     {
         maxTMultiple = ~maxTMultiple;
@@ -161,10 +163,8 @@ __int128 findD(__int128 totient, long k)
     return d;
 } //end of findD
 
-/*
-    expects odd numbered seeds
-    writes to file for public and private keys
-*/
+
+//produce both keys and write them to files
 void getKey()
 {
     long seed1, seed2;
