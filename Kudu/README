@@ -1,0 +1,10 @@
+Instructions:
+
+make smallKeyGen
+make smallAttack
+
+./smallKeyGen
+./smallAttack
+
+The normal attack (./attack) would take days to work by my estimation, so I did not test whether it works.
+
