@@ -93,9 +93,17 @@ int main(int argc, char *argv[])
 	//BEGIN ATTACK
 	long start;
 	long primeGuess;
+	__int128 otherPrime;
+	__int128 totient;
+	__int128 maxTMultiple;
 	__int128 dGuess;
 	bool found = false;
+	__int128 one = 1;
+    __int128 limit = ~(one << 127) ^ 1; //limit ends up being (2^127 - 1) - 1
 	
+	char tStr[41]; //for printing totient in debug mode
+	char maxTStr[41]; //for printing maxTMultiple in debug mode
+	char tmStr[41]; //totient multiple which produced the d we want
 
 	//START THE TIMER
 	time(&startTime);
@@ -103,44 +111,78 @@ int main(int argc, char *argv[])
 
 	//First, assume one of the primes is 3 (my keygen flaw)
 	primeGuess = 3;
-	long otherPrime = (long) (n / primeGuess);
-	long totient = (primeGuess - 1) * (otherPrime - 1); //small enough to use long
-	//find upper bound of loop
-	__int128 one = 1;
-    __int128 limit = ~(one << 127) ^ 1; //limit ends up being (2^127 - 1) - 1
-    long maxTMultiple = limit / totient;
-	for(int i = 1; i <= maxTMultiple; i++)
+	if(n % primeGuess == 0)
 	{
-		dGuess = (totient * i + 1) / e; //e is public exponent
-		if(dGuess == d)
+		otherPrime = (n / primeGuess);
+		totient = (primeGuess - 1) * (otherPrime - 1); //small enough to use long
+	    maxTMultiple = limit / totient;
+	    if(argc > 1) //debug
 		{
-			found = true;
-			break;
+			int128toa(tStr, totient);
+			int128toa(maxTStr, maxTMultiple);
+
+			printf("Totient is %s\n", tStr);
+			printf("Max totient multiple is %s\n", maxTStr);
 		}
-	}
+		for(__int128 i = 1; i <= maxTMultiple; i++)
+		{
+			dGuess = (totient * i + 1) / e; //e is public exponent
+			if(dGuess == d)
+			{
+				found = true;
+				break;
+			}
+		}
+	} //end of code for if 3 is a factor of n.
 
 
 	//If we didn't find the private key yet, start looking at primes from sqrt(n)
 	if(!found)
 	{
 		start = sqrt(n);
-		start = (start % 2 == 0? start - 1 : start);
+		start = (start % 2 == 0? start + 1 : start + 2);
 		if(argc > 1) //debug
 			printf("Square root of n: %ld\n", start);
 		primeGuess = start;
-		dGuess = d;
+		dGuess = 0; //just giving an impossible value for the while loop to compare at first
 
 		//stop when primeGuess is p or q and dGuess is d.
 		while( primeGuess > 3 && ( (primeGuess != p && primeGuess != q) || dGuess != d) )
 		{
 			primeGuess -= 2;
-		}
+			if(n % primeGuess == 0)
+			{
+				(argc > 1? printf("\n\nguess %ld | ", primeGuess) : 0);
+				otherPrime = n / primeGuess;
+				totient = (primeGuess - 1) * (otherPrime - 1);
+				maxTMultiple = limit / totient;
+				for(__int128 i = 1; i <= maxTMultiple; i++)
+				{
+					dGuess = (totient * i + 1) / e; //e is public exponent
+					if(dGuess == d)
+					{
+						//found = true;
+						if(argc > 1) //debug
+						{
+							int128toa(tmStr, i);
+							printf("Totient multiple is %s\n", tmStr);
+							int128toa(maxTStr, maxTMultiple);
+							printf("Max totient multiple is %s\n\n", maxTStr);
+						}
+						break;
+					}
+				}
+			} //end of code for a factor of n
+		} //end of while loop for finding key
 	}
 
 	time(&endTime);
 
-	printf("Primes are %ld and %ld\n", primeGuess, (long) (n / primeGuess) );
-	printf("Runtime: %ld", endTime - startTime);
+	printf("\nPrimes are %ld and %ld\n", primeGuess, (long) otherPrime );
+	char dStr[41];
+	int128toa(dStr, dGuess);
+	printf("Private exponent d is %s\n", dStr);
+	printf("Runtime: %ld\n", endTime - startTime);
 	printf("Done\n");
 	return 0;
 }

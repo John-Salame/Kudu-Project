@@ -9,7 +9,8 @@ int OFFSET = 4; //byte offset for shrink function
 
 void convert(float *fptr, int *iptr)
 {
-    asm("mov (%rdi), %r8; mov %r8, (%rsi);");
+    //asm("mov (%rdi), %r8; mov %r8, (%rsi);");
+    asm("movl (%rdi), %edx; movl %edx, (%rsi);");
 }
 
 
@@ -36,9 +37,8 @@ int getRand()
     time_t currTime;
     time(&currTime);
     //printf("Current time: %ld\n", currTime);
-    double dproduct = product;
     
-    fbits = currTime / dproduct;
+    fbits = currTime / product;
     
     //https://www.codeproject.com/Articles/15971/Using-Inline-Assembly-in-C-C
     //printf("About to convert with in-line assembly\n");
@@ -75,7 +75,7 @@ int getSeed()
 }
 
 //find next prime
-//start is assumed to be odd; only returns odd numbers (I'm removing 2 from dataset)
+//@param start is assumed to be odd; only returns odd numbers (I'm removing 2 from dataset)
 int findPrime(int start)
 {
     bool found = false;
@@ -94,7 +94,8 @@ int findPrime(int start)
             }
         }
         
-        if(prime)
+        //only accept prime numbers greater than 2.
+        if(prime && num > 2)
         {
             found = true;
         }
@@ -147,42 +148,41 @@ void getKey()
     int seed1, seed2;
     int prime1, prime2;
     long n; //public number
-    long totient;
-    int k; //public exponent
+    long totient = 0;
+    int k = 5; //public exponent. 5 was suggested by the RSA simple wiki source
     long d; //private exponent
+    bool coprime = (totient % k != 0); //no common factors besides 1; this % works since k is prime
 
-    seed1 = getSeed();
-    seed2 = getSeed();
-    prime1 = findPrime(seed1); //should only be 64-bit
-    prime2 = findPrime(seed2); //should only be 64-bit
+    do {
+	    seed1 = getSeed();
+	    seed2 = getSeed();
+	    prime1 = findPrime(seed1); //should only be 64-bit
+	    prime2 = findPrime(seed2); //should only be 64-bit
 
-    n = (long) prime1 * prime2;
+	    n = (long) prime1 * prime2;
 
-    totient = (long) (prime1 - 1) * (prime2 - 1);
+	    totient = (long) (prime1 - 1) * (prime2 - 1);
 
-    k = 5; //prime number 3, 5, or 35, as suggested by source
-    //determine if default k is coprime or not
+	    //we must have 1 < k < totient
+	    while(k >= totient)
+	    {
+	    	printf("\n\nYour totient is %ld\n", totient);
+	    	printf("Your primes are %d and %d\n", prime1, prime2);
+	        puts("Your prime factors are too small. Please use a different input.");
+	        seed2 = getSeed();
+	        prime2 = findPrime(seed2);
+	        totient = (prime1 - 1) * (prime2 - 1);
+	        n = (long) prime1 * prime2;
+	    }
 
-    //we must have 1 < k < totient
-    while(k >= totient)
-    {
-    	printf("\n\nYour totient is %ld\n", totient);
-    	printf("Your primes are %d and %d\n", prime1, prime2);
-        puts("Your prime factors are too small. Please do a different input.");
-        seed2 = getSeed();
-        prime2 = findPrime(seed2);
-        totient = (prime1 - 1) * (prime2 - 1);
-        n = prime1 * prime2;
-    }
+	    coprime = (totient % k != 0); //this works since k is prime
 
-    bool coprime = (totient % k != 0); //this works since k is prime
-
-    //easiest way to deal with a situation that will probably never arise
-    if(!coprime)
-    {
-        puts("k is not coprime to totient. Try different inputs.");
-        exit(EXIT_FAILURE);
-    }
+	    //easiest way to deal with a situation that will probably never arise
+	    if(!coprime)
+	    {
+	        puts("k is not coprime to totient. Try different inputs.");
+	    }
+	} while(!coprime); //end of do while to get factors
 
     //now find d (private exponent)
     d = findD(totient, k);

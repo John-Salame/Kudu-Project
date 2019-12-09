@@ -7,9 +7,13 @@
 //This is all I can do for attack until I can get OpenSSL working.
 int main(int argc, char *argv[])
 {
-	if(argc == 1)
+	if(argc < 2)
 	{
 		printf("Run with -d for debug info.\n");
+	}
+	if(argc < 3)
+	{
+		printf("Run with -d and -m for even more debug info.\n\n");
 	}
 
 	const char* pubkey = "public.txt";
@@ -64,8 +68,13 @@ int main(int argc, char *argv[])
 	//BEGIN ATTACK
 	int start; //start of search for primes
 	int primeGuess;
+	long otherPrime;
+	long totient;
+	long maxTMultiple; //The maximum x in ed = x*totient + 1
 	long dGuess;
 	bool found = false;
+	long one = 1;
+    long limit = ~(one << 63) ^ 1; //limit ends up being (2^127 - 1) - 1
 	
 
 	//START THE TIMER
@@ -74,24 +83,29 @@ int main(int argc, char *argv[])
 
 	//First, assume one of the primes is 3 (my keygen flaw)
 	primeGuess = 3;
-	long otherPrime = (n / primeGuess); //must be long for assumption if neither prime is 3
-	long totient = (primeGuess - 1) * (otherPrime - 1);
-	if(argc > 1) //debug
-		printf("Totient is %ld\n", totient);
-	//find upper bound of loop
-	long one = 1;
-    long limit = ~(one << 63) ^ 1; //limit ends up being (2^127 - 1) - 1
-    long maxTMultiple = limit / totient;
-	for(long i = 1; i <= maxTMultiple; i++)
+	if(n % primeGuess == 0)
 	{
-		//printf("%ld|", i);
-		dGuess = (totient * i + 1) / e; //e is public exponent
-		if(dGuess == d)
+		otherPrime = (n / primeGuess); //must be long for assumption to work if neither prime is 3
+		totient = (primeGuess - 1) * (otherPrime - 1);
+	    maxTMultiple = limit / totient;
+		if(argc > 1) //debug
 		{
-			found = true;
-			break;
+			printf("Totient is %ld\n", totient);
+			printf("Max totient multiple is %ld\n", maxTMultiple);
 		}
-	}
+		for(long i = 1; i <= maxTMultiple; i++)
+		{
+			//printf("%ld|", i);
+			dGuess = (totient * i + 1) / e; //e is public exponent
+			if(dGuess == d)
+			{
+				if(argc > 1)
+					printf("Totient multiple is %ld\n\n", i);
+				found = true;
+				break;
+			}
+		}
+	} //end of code for if 3 is a factor of n.
 
 
 	//If we didn't find the private key yet, start looking at primes from sqrt(n)
@@ -102,30 +116,41 @@ int main(int argc, char *argv[])
 		if(argc > 1) //debug
 			printf("Square root of n: %d\n", start);
 		primeGuess = start;
-		dGuess = d;
+		dGuess = 0; //just giving an impossible value for the while loop to compare at first
 
 		//stop when primeGuess is p or q and dGuess is d.
 		while( primeGuess > 3 && ( (primeGuess != p && primeGuess != q) || dGuess != d) )
 		{
 			primeGuess -= 2;
-			otherPrime = n / primeGuess;
-			long totient = (primeGuess - 1) * (otherPrime - 1);
-			long maxTMultiple = limit / totient;
-			for(long i = 1; i <= maxTMultiple; i++)
+			(argc > 2? printf("%d | ", primeGuess) : 0);
+			if(n % primeGuess == 0)
 			{
-				dGuess = (totient * i + 1) / e; //e is public exponent
-				if(dGuess == d)
+				(argc > 1? printf("\n\nguess %d | ", primeGuess) : 0);
+				otherPrime = n / primeGuess;
+				totient = (primeGuess - 1) * (otherPrime - 1);
+				maxTMultiple = limit / totient;
+				for(long i = 1; i <= maxTMultiple; i++)
 				{
-					found = true;
-					break;
+					dGuess = (totient * i + 1) / e; //e is public exponent
+					if(dGuess == d)
+					{
+						//found = true;
+						if(argc > 1) //debug
+						{
+							printf("Totient multiple is %ld\n", i);
+							printf("Max totient multiple is %ld\n\n", maxTMultiple);
+						}
+						break;
+					}
 				}
-			}
-		}
+			} //end of code for a factor of n
+		} //end of while loop for finding key
 	}
 
 	time(&endTime);
 
 	printf("\nPrimes are %d and %d\n", primeGuess, (int) (n / primeGuess) );
+	printf("Private exponent d is %ld\n", dGuess);
 	printf("Runtime: %ld\n", endTime - startTime);
 	printf("Done\n");
 	return 0;

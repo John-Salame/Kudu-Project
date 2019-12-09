@@ -128,13 +128,17 @@ __int128 findD(__int128 totient, long k)
     __int128 d = 0;
     __int128 one = 1;
     __int128 limit = ~(one << 127) ^ 1; //limit ends up being (2^127 - 1) - 1
-    long maxTMultiple = limit / totient;
+    __int128 maxTMultiple = limit / totient;
+    /*
     //protection for if totient is too small and maxTMultiple is too big
     if(maxTMultiple < 0)
     {
         maxTMultiple = ~maxTMultiple;
     }
-    printf("Max multiple of totient: %ld\n", maxTMultiple);
+    */
+    char maxTStr[41];
+    int128toa(maxTStr, maxTMultiple);
+    printf("Max multiple of totient: %s\n", maxTStr);
     __int128 maxD = (totient * maxTMultiple + 1) / k;
 
     char maxDStr[41]; //41 worst case according to https://code-examples.net/en/q/b1dc31
@@ -144,17 +148,21 @@ __int128 findD(__int128 totient, long k)
     bool valid = false;
     while(!valid)
     {
-        long r = rand();
+        //long r = rand();
+        __int128 r = rand();
         if(r < 0)
         {
             r = ~r;
         }
-        long x = (r % maxTMultiple) + 1;
+        __int128 newR = r;
+        __int128 x = (newR % maxTMultiple) + 1;
         //printf("X %ld ", x);
         __int128 prod = x * totient + 1;
         if(prod % k == 0)
         {
-            printf("\nx is %ld\n", x);
+            char xStr[41];
+            int128toa(xStr, x);
+            printf("\nx is %s\n", xStr);
             d = prod / k;
             assert(prod == d * k);
             valid = true;
